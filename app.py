@@ -5,7 +5,10 @@ import gradio as gr
 import re
 
 # 1. Setup Groq API
-client = Groq(api_key=os.environ.get("GROQ_API_KEY", "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"))
+GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
+if not GROQ_API_KEY:
+    raise SystemExit("Set the GROQ_API_KEY environment variable (free key: https://console.groq.com/keys).")
+client = Groq(api_key=GROQ_API_KEY)
 
 # 2. Load Spatial Dataset
 df = pd.read_excel("umm_kulthum_dataset.xlsx")

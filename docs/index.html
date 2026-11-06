@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Umm Kulthum Atlas</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<script>
+  // apply the saved (or system) theme before first paint
+  (function () {
+    var t = null;
+    try { t = localStorage.getItem("uk-theme"); } catch (e) {}
+    if (t !== "light" && t !== "dark") t = matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
+    document.documentElement.dataset.theme = t;
+  })();
+</script>
+<link rel="stylesheet" href="style.css">
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.186.1/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.186.1/examples/jsm/",
+    "d3-force-3d": "https://cdn.jsdelivr.net/npm/d3-force-3d@3.0.6/+esm"
+  }
+}
+</script>
+</head>
+<body>
+<canvas id="scene" aria-label="3D network of places linked to Umm Kulthum"></canvas>
+<div id="labels" aria-hidden="true"></div>
+<div id="tooltip" hidden></div>
+
+<!-- entrance -->
+<section id="intro" aria-label="Entrance">
+  <div class="intro-text">
+    <p class="intro-ar" lang="ar">أم كلثوم</p>
+    <h1>Umm Kulthum Atlas</h1>
+    <p class="intro-sub">Kawkab al-Sharq · Star of the East · 1898–1975<br>151 places that hold her memory</p>
+    <button class="enter" id="enter">Click anywhere to enter</button>
+    <button class="intro-about" id="intro-about">About</button>
+  </div>
+  <p class="credit" id="credit">Loading portrait…</p>
+</section>
+
+<!-- mini music player (entrance and atlas) -->
+<div class="music" id="music" hidden role="group" aria-label="Music">
+  <div class="music-pill">
+  <span class="music-disc" aria-hidden="true"></span>
+  <a class="music-title" id="music-title" lang="ar" dir="rtl" target="_blank" rel="noopener">يا ليلة العيد</a>
+  <button class="music-btn" id="music-play" aria-label="Play">▶</button>
+  <button class="music-btn" id="music-shuffle" aria-label="Shuffle to another song" title="Shuffle: another song from the atlas">⤨</button>
+  </div>
+</div>
+
+<!-- interface (revealed after entering) -->
+<header class="bar ui">
+  <div class="brand">
+    <h1><a href="./" id="to-entrance" title="Back to the entrance">Umm Kulthum Atlas <span class="ar" lang="ar">أطلس أم كلثوم</span></a></h1>
+    <p class="sub" id="stats"></p>
+  </div>
+  <div class="controls">
+    <div class="seg" role="tablist" aria-label="Layout">
+      <button id="mode-network" class="on" role="tab" aria-selected="true">Network</button>
+      <button id="mode-globe" role="tab" aria-selected="false">Globe</button>
+    </div>
+    <div class="seg" id="levels" aria-label="Viewing level" hidden>
+      <button data-level="world" class="on">World</button>
+      <button data-level="egypt">Egypt</button>
+      <button data-level="cairo">Cairo</button>
+    </div>
+    <div class="toggles" id="hub-toggles" aria-label="Link places by">
+      <span class="lbl">Link by</span>
+      <label><input type="checkbox" data-hub="person" checked><i class="sw person"></i>People</label>
+      <label><input type="checkbox" data-hub="song" checked><i class="sw song"></i>Songs</label>
+      <label><input type="checkbox" data-hub="city"><i class="sw city"></i>Cities</label>
+    </div>
+    <div class="search">
+      <input id="search" type="search" placeholder="Search place, person, song or CODE…" autocomplete="off" list="search-list">
+      <datalist id="search-list"></datalist>
+    </div>
+    <button id="open-about" class="icon about-btn" title="About this project" aria-label="About this project">About</button>
+    <button id="theme-toggle" class="icon" title="Light / dark mode" aria-label="Switch theme">☾</button>
+    <button id="open-settings" class="icon" title="AI narration settings" aria-label="AI narration settings">⚙︎</button>
+  </div>
+</header>
+
+<div class="legend ui" id="legend"></div>
+<p class="hint ui" id="hint">Drag to orbit · scroll to zoom · click a dot to open it</p>
+
+<aside id="panel" hidden aria-live="polite">
+  <button class="close" id="close-panel" aria-label="Close">×</button>
+  <div id="panel-body"></div>
+</aside>
+
+<dialog id="about" aria-labelledby="about-title">
+  <form method="dialog">
+    <p class="kicker">About</p>
+    <h2 id="about-title">Umm Kulthum Atlas <span class="ar" lang="ar">أطلس أم كلثوم</span></h2>
+    <p>An interactive atlas of 151 places that hold the memory of Umm Kulthum (Kawkab al-Sharq, 1898–1975): the theatres, cinemas, palaces, streets and villages where she sang, lived, recorded and was remembered. Explore them as a 3D network of the people and songs they share, or on a globe down to the streets of Cairo. Each place can be read through three voices: Umm Kulthum herself, Pierre Nora and Henri Lefebvre.</p>
+    <p class="about-credit">Developed by <b>Eslam Elshamy</b> and <b>Mohammed W. Fareed</b><br>
+      Lab of Creative/Critical AI (LOCAI) · <a href="https://locai.carrd.co" target="_blank" rel="noopener">locai.carrd.co</a></p>
+    <p class="muted">Map tiles: Esri, HERE, Garmin, © OpenStreetMap contributors. Music: concert and studio recordings streamed from the Internet Archive (archive.org). Built with three.js and d3.</p>
+    <div class="row"><span class="grow"></span><button value="close" class="primary">Close</button></div>
+  </form>
+</dialog>
+
+<dialog id="settings">
+  <form method="dialog" id="settings-form">
+    <h2>AI narration</h2>
+    <p class="muted">The atlas works fully from the dataset. The optional <b>Seminar</b> (Umm Kulthum · Pierre Nora · Henri Lefebvre) uses a language model. Every option below is free.</p>
+    <label>Provider
+      <select id="ai-provider"></select>
+    </label>
+    <p class="muted" id="ai-provider-note"></p>
+    <label>Model
+      <input id="ai-model" type="text" spellcheck="false">
+    </label>
+    <label id="ai-key-row">API key <span class="muted">(stored only in this browser)</span>
+      <input id="ai-key" type="password" autocomplete="off" spellcheck="false">
+    </label>
+    <div class="row">
+      <button type="button" id="clear-cache" class="ghost">Clear saved seminars</button>
+      <span class="grow"></span>
+      <button value="cancel" class="ghost">Cancel</button>
+      <button value="save" id="save-settings" class="primary">Save</button>
+    </div>
+  </form>
+</dialog>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
+<script src="data.js"></script>
+<script src="music.js"></script>
+<script src="ai.js"></script>
+<script type="module" src="app.js"></script>
+</body>
+</html>
