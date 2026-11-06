@@ -2,6 +2,13 @@
    Every provider speaks the OpenAI chat-completions format, so one fetch covers all. */
 (function () {
   const PROVIDERS = {
+    webllm: {
+      label: "In your browser (free, no key, no server)",
+      url: null,
+      model: "Qwen2.5-3B-Instruct-q4f16_1-MLC",
+      key: false,
+      note: "Runs an open model on your own GPU (needs Chrome/Edge with WebGPU). The first run downloads about 2 GB, cached afterwards. Smaller and faster: Qwen2.5-1.5B-Instruct-q4f16_1-MLC. Quality is below the hosted models, especially in Arabic.",
+    },
     groq: {
       label: "Groq (free API key)",
       url: "https://api.groq.com/openai/v1/chat/completions",
@@ -23,13 +30,6 @@
       key: true,
       note: "Use any model ending in “:free”. Key at openrouter.ai/keys.",
     },
-    webllm: {
-      label: "In your browser (WebLLM, no key, no server)",
-      url: null,
-      model: "Qwen2.5-3B-Instruct-q4f16_1-MLC",
-      key: false,
-      note: "Runs an open model on your own GPU (needs Chrome/Edge with WebGPU). The first run downloads about 2 GB, cached afterwards. Smaller and faster: Qwen2.5-1.5B-Instruct-q4f16_1-MLC. Quality is below the hosted models, especially in Arabic.",
-    },
     ollama: {
       label: "Ollama (runs on your computer)",
       url: "http://localhost:11434/v1/chat/completions",
@@ -48,7 +48,7 @@
   function store(fn) { try { return fn(); } catch (e) { return null; } }
   function loadSettings() {
     const s = store(() => JSON.parse(localStorage.getItem(LS))) || {};
-    const provider = PROVIDERS[s.provider] ? s.provider : "groq";
+    const provider = PROVIDERS[s.provider] ? s.provider : "webllm"; // default: runs in the browser, no key
     return { provider, model: s.model || PROVIDERS[provider].model, keys: s.keys || {} };
   }
   let settings = loadSettings();
@@ -107,7 +107,7 @@
 
   const tidy = (t) => t.replace(/<think>[\s\S]*?<\/think>/g, "").trim();
 
-  async function chatInBrowser(system, user) {
+  async function chatInBrowser(system, user, onPartial) {
     if (!navigator.gpu) throw new Error("This browser has no WebGPU. Use a recent Chrome or Edge, or pick another provider in Settings.");
     const model = settings.model || PROVIDERS.webllm.model;
     if (!webllm || webllm.model !== model) {
@@ -119,16 +119,23 @@
       webllm = { model, engine };
       onProgress("");
     }
-    const r = await webllm.engine.chat.completions.create({
+    // stream tokens so the text appears as it is written
+    const stream = await webllm.engine.chat.completions.create({
       messages: [{ role: "system", content: system }, { role: "user", content: user }],
       temperature: 0.7,
       max_tokens: 1400,
+      stream: true,
     });
-    return tidy(r.choices[0].message.content || "");
+    let text = "";
+    for await (const chunk of stream) {
+      text += chunk.choices[0]?.delta?.content || "";
+      if (onPartial) onPartial(tidy(text));
+    }
+    return tidy(text);
   }
 
-  async function chat(system, user, signal) {
-    if (settings.provider === "webllm") return chatInBrowser(system, user);
+  async function chat(system, user, signal, onPartial) {
+    if (settings.provider === "webllm") return chatInBrowser(system, user, onPartial);
     const prov = PROVIDERS[settings.provider];
     const headers = { "Content-Type": "application/json" };
     if (prov.key) {
@@ -166,7 +173,7 @@
   }
 
   /** Runs the three voices in order; onVoice(i, text|null, error|null) fires as each finishes. */
-  async function seminar(place, onVoice, signal) {
+  async function seminar(place, onVoice, signal, onPartial) {
     const key = CACHE + settings.provider + "-" + (settings.model || "") + "-" + place.code;
     const cached = store(() => JSON.parse(localStorage.getItem(key)));
     if (cached && cached.length === 3) {
@@ -178,7 +185,7 @@
     let prompt = ctx + "\n\nTask: speak about this place.";
     for (let i = 0; i < VOICES.length; i++) {
       try {
-        const t = await chat(VOICES[i].system(), prompt, signal);
+        const t = await chat(VOICES[i].system(), prompt, signal, onPartial && ((txt) => onPartial(i, txt)));
         out.push(t);
         onVoice(i, t, null);
         prompt += `\n\n${VOICES[i].name}'s response:\n${t}`;

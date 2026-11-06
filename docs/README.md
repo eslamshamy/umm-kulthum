@@ -55,10 +55,10 @@ Choose one in ⚙︎ Settings:
 
 | Provider | Cost | Notes |
 |---|---|---|
-| Groq | free key | default; same `openai/gpt-oss-120b` model as the original app |
 | Google Gemini | free key | good Arabic |
 | OpenRouter | free key | any `:free` model |
-| WebLLM | no key, no server | runs in the browser on WebGPU (Chrome/Edge), about 2 GB one-time download |
+| **In your browser (WebLLM)** | no key, no server | **default.** Runs on the visitor's graphics card (WebGPU: Chrome, Edge, recent Safari). First use downloads about 1.7 GB with a progress bar; later visits load from cache in about 20 s. Text appears as it's written. |
+| Groq | free key | same `openai/gpt-oss-120b` model as the original app; better writing, especially in Arabic |
 | Ollama | no key | runs locally: `OLLAMA_ORIGINS="*" ollama serve` |
 
 Keys stay in the visitor's browser (localStorage) and are never in the code. Generated

@@ -319,3 +319,9 @@ button.icon.about-btn { width: auto; padding: 0 12px; border-radius: 999px; font
 }
 .intro-about:hover { color: var(--ink); }
 @media (min-aspect-ratio: 5/4) and (min-width: 761px) { .intro-about { margin-left: 2px; } }
+
+/* in-browser AI model download */
+.dl { margin-top: 6px; font-style: normal; }
+.dl-bar { height: 6px; border-radius: 999px; background: var(--surface-2); overflow: hidden; }
+.dl-bar i { display: block; height: 100%; width: 0; background: var(--ink); transition: width .4s ease; }
+.dl-text { margin: 6px 0 0; font-size: 12.5px; color: var(--muted); }

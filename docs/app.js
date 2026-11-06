@@ -1107,10 +1107,26 @@ function wireSeminar(n) {
     seminarAbort = new AbortController();
     btn.disabled = true;
     btn.textContent = "Generating…";
-    box.innerHTML = AI.VOICES.map((v, i) => `<div class="voice loading" id="voice-${i}"><h4>${v.name} <small>· ${v.lens}</small></h4>${i === 0 ? "Writing…" : "Waiting for the previous voice…"}</div>`).join("");
-    AI.onProgress = (txt) => {
+    box.innerHTML = AI.VOICES.map((v, i) => `<div class="voice loading" id="voice-${i}"><h4>${v.name} <small>· ${v.lens}</small></h4><span class="status">${i === 0 ? "Writing…" : "Waiting for the previous voice…"}</span></div>`).join("");
+    AI.onProgress = (txt) => { // in-browser model: show the one-time download clearly
       const el = box.querySelector(".voice.loading");
-      if (el && txt) el.lastChild.textContent = txt;
+      if (!el || !txt) return;
+      const pct = +(txt.match(/(\d+)% completed/) || [])[1];
+      const mb = (txt.match(/(\d+)MB fetched/) || [])[1];
+      const status = el.querySelector(".status");
+      if (!status) return;
+      if (/param cache|fetch params/i.test(txt)) {
+        status.textContent = "";
+        el.querySelector(".dl") || el.insertAdjacentHTML("beforeend",
+          `<div class="dl"><div class="dl-bar"><i></i></div><p class="dl-text"></p></div>`);
+        el.querySelector(".dl-bar i").style.width = (pct || 0) + "%";
+        el.querySelector(".dl-text").textContent =
+          `Downloading the AI model into your browser: ${pct || 0}%${mb ? ` (${mb} MB of about 1,700 MB)` : ""}. ` +
+          "This happens only the first time; afterwards it starts in seconds.";
+      } else {
+        el.querySelector(".dl")?.remove();
+        status.textContent = /shader|loading model|gpu/i.test(txt) ? "Preparing the model on your graphics card…" : "Writing…";
+      }
     };
     const res = await AI.seminar(n.p, (i, text, err) => {
       const el = $("#voice-" + i);
@@ -1125,8 +1141,14 @@ function wireSeminar(n) {
       el.className = "voice";
       el.innerHTML = voiceHTML(AI.VOICES[i], text);
       const next = $("#voice-" + (i + 1));
-      if (next) next.lastChild.textContent = "Writing…";
-    }, seminarAbort.signal);
+      const ns = next && next.querySelector(".status");
+      if (ns) ns.textContent = "Writing…";
+    }, seminarAbort.signal, (i, text) => { // live text from the in-browser model
+      const el = $("#voice-" + i);
+      if (!el || !text) return;
+      el.className = "voice";
+      el.innerHTML = voiceHTML(AI.VOICES[i], text + " ▍");
+    });
     if (!$("#run-seminar")) return;
     btn.disabled = false;
     btn.textContent = res.cached ? "Saved seminar ✓" : res.error ? "Try again" : "Regenerate";
