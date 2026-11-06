@@ -107,16 +107,45 @@
 
   const tidy = (t) => t.replace(/<think>[\s\S]*?<\/think>/g, "").trim();
 
+  /* The ~1.7 GB model arrives in ~60 pieces. A single failed piece ("Cache.add() encountered a
+     network error") used to stop everything. Now: retry (pieces already stored are kept, so it
+     resumes), then switch to IndexedDB storage, which some browsers handle more reliably. */
+  async function loadEngineWithRetry(lib, model) {
+    const attempts = [
+      { idb: false, wait: 0 }, { idb: false, wait: 2000 }, { idb: false, wait: 5000 },
+      { idb: true, wait: 1000 }, { idb: true, wait: 5000 },
+    ];
+    let lastErr;
+    for (const [k, a] of attempts.entries()) {
+      if (a.wait) {
+        onProgress(`Download interrupted — retrying (${k}/${attempts.length - 1})…`);
+        await sleep(a.wait);
+      }
+      try {
+        return await lib.CreateMLCEngine(model, {
+          appConfig: { ...lib.prebuiltAppConfig, useIndexedDBCache: a.idb },
+          initProgressCallback: (p) => onProgress(p.text || ""),
+        });
+      } catch (e) {
+        lastErr = e;
+        const msg = String(e && e.message || e);
+        if (!/cache|network|fetch|quota|storage|abort/i.test(msg)) break; // not a download problem
+      }
+    }
+    const msg = String(lastErr && lastErr.message || lastErr);
+    if (/quota|storage/i.test(msg)) {
+      throw new Error("Your browser ran out of storage for the AI model (it needs about 2 GB). Free some disk space, leave private browsing, or choose another provider in Settings.");
+    }
+    throw new Error("The AI model couldn't finish downloading (network error). Check your connection and press “Try again”: it resumes where it stopped. If it keeps failing, pick another provider in Settings. (" + msg + ")");
+  }
+
   async function chatInBrowser(system, user, onPartial) {
     if (!navigator.gpu) throw new Error("This browser has no WebGPU. Use a recent Chrome or Edge, or pick another provider in Settings.");
     const model = settings.model || PROVIDERS.webllm.model;
     if (!webllm || webllm.model !== model) {
       const lib = await import(WEBLLM_URL);
       if (webllm) await webllm.engine.unload();
-      const engine = await lib.CreateMLCEngine(model, {
-        initProgressCallback: (p) => onProgress(p.text || ""),
-      });
-      webllm = { model, engine };
+      webllm = { model, engine: await loadEngineWithRetry(lib, model) };
       onProgress("");
     }
     // stream tokens so the text appears as it is written

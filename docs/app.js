@@ -1046,9 +1046,9 @@ function placeHTML(n) {
         <span class="why">${r.why.map((h) => esc(h.label)).join(" · ")}</span></button></li>`).join("")}</ul>`
       : `<p class="muted">No shared people, songs or city with other places in the dataset.</p>`}
     <h3>Seminar · three voices</h3>
-    <p class="muted">Umm Kulthum remembers, Pierre Nora reads it as a site of memory, Henri Lefebvre as produced space. In English and Arabic, generated from this record only.</p>
+    <p class="muted">Umm Kulthum remembers, Pierre Nora reads it as a site of memory, Henri Lefebvre as produced space. In English and Arabic, drawn from this record only.</p>
     <div class="seminar-actions">
-      <button class="primary" id="run-seminar">Generate seminar</button>
+      <button class="${(window.UK_SEMINARS || {})[p.code] ? "ghost" : "primary"}" id="run-seminar">${(window.UK_SEMINARS || {})[p.code] ? "Generate a new version with AI" : "Generate seminar"}</button>
       <span class="muted" id="seminar-provider"></span>
       <button class="ghost" id="seminar-settings">Change model</button>
     </div>
@@ -1100,6 +1100,9 @@ function providerLabel() {
 function wireSeminar(n) {
   const btn = $("#run-seminar");
   const box = $("#voices");
+  // pre-written seminar: shown straight away, no AI needed
+  const ready = (window.UK_SEMINARS || {})[n.p.code];
+  if (ready) box.innerHTML = ready.map((t, i) => `<div class="voice">${voiceHTML(AI.VOICES[i], t)}</div>`).join("");
   $("#seminar-provider").textContent = providerLabel();
   $("#seminar-settings").addEventListener("click", openSettings);
   btn.addEventListener("click", async () => {
@@ -1125,7 +1128,8 @@ function wireSeminar(n) {
           "This happens only the first time; afterwards it starts in seconds.";
       } else {
         el.querySelector(".dl")?.remove();
-        status.textContent = /shader|loading model|gpu/i.test(txt) ? "Preparing the model on your graphics card…" : "Writing…";
+        status.textContent = /retrying/i.test(txt) ? txt
+          : /shader|loading model|gpu/i.test(txt) ? "Preparing the model on your graphics card…" : "Writing…";
       }
     };
     const res = await AI.seminar(n.p, (i, text, err) => {
